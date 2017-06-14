@@ -5,48 +5,57 @@ contract MultisigWallet {
     uint value;
     address to;
     address[] signers;
-    bool signed;
+    bool completed;
+    string description;
   }
 
-  mapping(address => bool) authorizedAddrs;
-  uint authorizedAddrsLength;
-  Transaction[] pendingTransactions;
+  address creator;
+  mapping(address => bool) public authorizedAddrs;
+  uint8 public authorizedAddrsLength;
+  Transaction[] public pendingTransactions;
 
-  function MultisigWallet(address[] _addrs) {
-    for (uint i = 0; i < _addrs.length; i++) {
-      authorizedAddrs[_addrs[i]] = true;
-    }
-
-    authorizedAddrsLength = i;
+  function MultisigWallet() {
+    creator = msg.sender;
+    authorizedAddrs[msg.sender] = true;
+    authorizedAddrsLength = 1;
   }
 
-  modifier isAuthorized {
-    require(authorizedAddrs[msg.sender]);
+  modifier isAuthorized { require(authorizedAddrs[msg.sender]); _; }
+  modifier onlyOwner { require(msg.sender == creator); _; }
+  // hasn't already signed modifier
 
-    _;
+  function authorizeAddress(address addr) onlyOwner {
+    authorizedAddrs[addr] = true;
+    authorizedAddrsLength += 1;
   }
 
-  function enterTransaction(uint _value, address _to) isAuthorized {
-    Transaction emptyTransaction = pendingTransactions[pendingTransactions.length];
+  function proposeTransaction(uint _value, address _to, string _description) isAuthorized {
+    pendingTransactions.push(Transaction({
+      value: _value,
+      to: _to,
+      signers: new address[](0),
+      completed: false,
+      description: _description
+    }));
 
-    emptyTransaction.value = _value;
-    emptyTransaction.to = _to;
-    emptyTransaction.signers.push(msg.sender);
-    emptyTransaction.signed = false;
+    pendingTransactions[pendingTransactions.length - 1].signers.push(msg.sender);
+  }
+
+  function test() returns(uint) {
+    return pendingTransactions[0].signers.length;
   }
 
   function signTransaction(uint transactionID) isAuthorized {
     Transaction transaction = pendingTransactions[transactionID];
 
     transaction.signers.push(msg.sender);
+
+    if (transaction.signers.length == authorizedAddrsLength) {
+      transaction.to.transfer(transaction.value);
+      transaction.completed = true;
+    }
   }
 
-  function authorizeTransfer(address authorizer, uint transactionID) isAuthorized {
-    Transaction transaction = pendingTransactions[transactionID];
-
-    address _to = transaction.to;
-    uint value = transaction.value;
-
-    _to.transfer(value);
+  function getDebugData() returns(string) {
   }
 }

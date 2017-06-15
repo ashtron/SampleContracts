@@ -69,6 +69,4 @@ contract MultisigWallet {
       transaction.completed = true;
     }
   }
-
-  function () payable {}
 }

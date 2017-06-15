@@ -10,14 +10,18 @@ contract MultisigWallet {
   }
 
   address creator;
+
   mapping(address => bool) public authorizedAddrs;
   uint8 public authorizedAddrsLength;
-  Transaction[] public pendingTransactions;
 
-  function MultisigWallet() {
+  Transaction[] public pendingTransactions;
+  uint8 public pendingTransactionsLength;
+
+  function MultisigWallet() payable {
     creator = msg.sender;
     authorizedAddrs[msg.sender] = true;
     authorizedAddrsLength = 1;
+    pendingTransactionsLength = 0;
   }
 
   modifier isAuthorized { require(authorizedAddrs[msg.sender]); _; }
@@ -29,6 +33,10 @@ contract MultisigWallet {
     authorizedAddrsLength += 1;
   }
 
+  function deposit() payable {
+
+  }
+
   function proposeTransaction(uint _value, address _to, string _description) isAuthorized {
     pendingTransactions.push(Transaction({
       value: _value,
@@ -38,14 +46,20 @@ contract MultisigWallet {
       description: _description
     }));
 
-    pendingTransactions[pendingTransactions.length - 1].signers.push(msg.sender);
+    pendingTransactions[pendingTransactionsLength].signers.push(msg.sender);
+    pendingTransactionsLength += 1;
   }
 
-  function test() returns(uint) {
-    return pendingTransactions[0].signers.length;
+  function getSigners(uint8 transactionID) returns(uint) {
+    return pendingTransactions[transactionID].signers.length;
   }
 
-  function signTransaction(uint transactionID) isAuthorized {
+  function getTransactionData(uint8 transactionID) returns(uint value, address to, bool completed, uint length, uint authLength) {
+    Transaction transaction = pendingTransactions[transactionID];
+    return (transaction.value, transaction.to, transaction.completed, transaction.signers.length, authorizedAddrsLength);
+  }
+
+  function signTransaction(uint8 transactionID) isAuthorized {
     Transaction transaction = pendingTransactions[transactionID];
 
     transaction.signers.push(msg.sender);
@@ -56,6 +70,5 @@ contract MultisigWallet {
     }
   }
 
-  function getDebugData() returns(string) {
-  }
+  function () payable {}
 }
